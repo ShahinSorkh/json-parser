@@ -250,10 +250,56 @@ int array_connect(struct openconnect_info *vpninfo)
 		goto out;
 	}
 
-	/* Parse it, learn what we need from it */
-	dump_buf_hex(vpninfo, PRG_DEBUG, '<', bytes, ret);
-	if (ret > 16 && bytes[16] == '{')
-		dump_buf(vpninfo, '<', (char *)bytes + 16);
+	if (vpninfo->dump_http_traffic)
+		dump_buf_hex(vpninfo, PRG_DEBUG, '<', bytes, ret);
+
+	if (ret <= 16 || bytes[16] != '{') {
+		vpn_progress(vpninfo, PRG_ERR,
+			     _("Unexpected response to conf50 request\n"));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	json_settings settings = { 0 };
+	char json_err[json_error_max];
+
+	json_value *val = json_parse_ex(&settings, (json_char *)bytes + 16, ret - 16, json_err);
+	if (!val) {
+	eparse50:
+		vpn_progress(vpninfo, PRG_ERR,
+			     _("Failed to parse conf50 response\n"));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (vpninfo->verbose >= PRG_DEBUG)
+		dump_json(vpninfo, PRG_DEBUG, val);
+
+	if (val->type != json_object)
+		goto eparse50;
+
+	int speed_tunnel = 0, speed_tunnel_enc = 0;
+	int i;
+	for (i = 0; i < val->u.object.length; i++) {
+		json_object_entry *child = &val->u.object.values[i];
+
+		if (child->value->type == json_integer) {
+			int ival = child->value->u.integer;
+
+			if (!strcmp(child->name, "allow_speed_tunnel"))
+				speed_tunnel = ival;
+			else if (!strcmp(child->name, "speed_tunnel_encryption"))
+				speed_tunnel_enc = ival;
+			else if (!strcmp(child->name, "keepalive_interval"))
+				if (ival &&
+				    (!vpninfo->ssl_times.dpd || ival  < vpninfo->ssl_times.dpd))
+					vpninfo->ssl_times.dpd = ival;
+		}
+	}
+	json_value_free(val);
+	vpn_progress(vpninfo, PRG_INFO,
+		     _("Initial config: Speed tunnel %d, enc %d, DPD %d\n"),
+		     speed_tunnel, speed_tunnel_enc, vpninfo->ssl_times.dpd);
 
 	/* Send second configuration request 'conf54' */
 	dump_buf_hex(vpninfo, PRG_DEBUG, '>', (void *)conf54, sizeof(conf54));
