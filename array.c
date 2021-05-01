@@ -29,6 +29,8 @@
 #include <stdarg.h>
 #include <sys/types.h>
 
+#include "json.h"
+
 #include "openconnect-internal.h"
 static struct oc_auth_form *plain_auth_form() {
         struct oc_auth_form *form;
