@@ -163,7 +163,7 @@ endif
 
 pkgconfig_DATA = openconnect.pc
 
-EXTRA_DIST = AUTHORS version.sh COPYING.LGPL openconnect.ico $(lib_srcs_openssl) $(lib_srcs_gnutls) openconnect.nsi.in
+EXTRA_DIST = AUTHORS version.sh COPYING.LGPL openconnect.ico $(POTFILES) openconnect.nsi.in
 EXTRA_DIST += json/AUTHORS json/LICENSE json/json.c json/json.h
 EXTRA_DIST += $(shell cd "$(top_srcdir)" && \
 		git ls-tree HEAD -r --name-only -- android/ java/ trojans/ bash/ 2>/dev/null)
